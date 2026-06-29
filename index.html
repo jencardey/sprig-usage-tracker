@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprig usage tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f3;
+      color: #1a1a18;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a18; color: #f0ede6; }
+      .card { background: #252522; border-color: rgba(255,255,255,0.1); }
+      .inner-card { background: #2e2e2b; border-color: rgba(255,255,255,0.08); }
+      .bar-track { background: rgba(255,255,255,0.08); }
+      .row { border-color: rgba(255,255,255,0.07); }
+      .section-title { color: #888780; }
+      .refresh-btn { border-color: rgba(255,255,255,0.15); color: #b4b2a9; }
+      .refresh-btn:hover { background: rgba(255,255,255,0.05); }
+    }
+    .page { max-width: 680px; margin: 0 auto; }
+    .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; }
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 3px; }
+    .sublabel { font-size: 13px; color: #888780; }
+    .refresh-btn {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; padding: 6px 14px;
+      border: 1px solid #d3d1c7; border-radius: 8px;
+      background: none; cursor: pointer; color: #5f5e5a; white-space: nowrap;
+    }
+    .refresh-btn:hover { background: #f1efe8; }
+    .refresh-btn svg { width: 14px; height: 14px; }
+    .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .card { background: #ffffff; border: 1px solid #e8e6df; border-radius: 12px; padding: 1.25rem; margin-bottom: 12px; }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+    .metric-label { font-size: 13px; color: #888780; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+    .metric-value { font-size: 26px; font-weight: 500; }
+    .metric-sub { font-size: 15px; font-weight: 400; color: #888780; }
+    .badge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 6px; white-space: nowrap; }
+    .badge-danger { background: #fcebeb; color: #a32d2d; }
+    .badge-warning { background: #faeeda; color: #854f0b; }
+    .badge-success { background: #eaf3de; color: #3b6d11; }
+    .bar-track { background: #e8e6df; border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 6px; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .bar-danger { background: #e24b4a; }
+    .bar-warning { background: #ef9f27; }
+    .bar-success { background: #639922; }
+    .bar-note { font-size: 12px; color: #888780; }
+    .inner-card { background: #fafaf8; border: 1px solid #e8e6df; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 12px; }
+    .section-title { font-size: 12px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f1efe8; font-size: 14px; }
+    .row:last-child { border-bottom: none; }
+    .row-right { display: flex; align-items: center; gap: 10px; }
+    .row-count { font-size: 13px; color: #888780; }
+    .row-value { font-size: 14px; font-weight: 500; }
+    .last-updated { text-align: center; font-size: 12px; color: #888780; margin-top: 1rem; }
+    .error-msg { background: #fcebeb; border: 1px solid #f09595; border-radius: 8px; padding: 1rem; font-size: 14px; color: #a32d2d; margin-bottom: 12px; display: none; }
+    .skeleton { background: #e8e6df; border-radius: 4px; height: 26px; width: 120px; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="header">
+      <div>
+        <h1>Sprig usage tracker</h1>
+        <p class="sublabel" id="env-label">Thumbtack Production &middot; loading&hellip;</p>
+      </div>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        Refresh
+      </button>
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="metric-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Monthly unique users
+          </p>
+          <p class="metric-value" id="muu-value"><span class="skeleton"></span></p>
+        </div>
+        <span class="badge" id="muu-badge">&nbsp;</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="muu-bar" style="width:0%"></div></div>
+      <p class="bar-note" id="muu-note">&nbsp;</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="metric-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            In-product survey responses
+          </p>
+          <p class="metric-value" id="surveys-value"><span class="skeleton"></span></p>
+        </div>
+        <span class="badge" id="surveys-badge">&nbsp;</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="surveys-bar" style="width:0%"></div></div>
+      <p class="bar-note" id="surveys-note">&nbsp;</p>
+    </div>
+
+    <div class="inner-card">
+      <p class="section-title">Other limits (within quota)</p>
+      <div class="row">
+        <span>Surveys</span>
+        <div class="row-right"><span class="row-count">0 / 25 responses</span><span class="badge badge-success">0%</span></div>
+      </div>
+      <div class="row">
+        <span>Feedback</span>
+        <div class="row-right"><span class="row-count">0 / 500 responses</span><span class="badge badge-success">0%</span></div>
+      </div>
+      <div class="row">
+        <span>Heatmaps</span>
+        <div class="row-right"><span class="row-count">0 / 100 captures</span><span class="badge badge-success">0%</span></div>
+      </div>
+      <div class="row">
+        <span>Replays</span>
+        <div class="row-right"><span class="row-count">0 / 50 clips</span><span class="badge badge-success">0%</span></div>
+      </div>
+    </div>
+
+    <div class="inner-card">
+      <p class="section-title">Active in-product surveys</p>
+      <div id="surveys-list">
+        <div class="row"><span class="skeleton" style="width:80%"></span></div>
+        <div class="row"><span class="skeleton" style="width:70%"></span></div>
+        <div class="row"><span class="skeleton" style="width:75%"></span></div>
+      </div>
+    </div>
+
+    <p class="last-updated" id="last-updated">Loading&hellip;</p>
+
+  </div>
+
+  <script>
+    const ENV_ID = '67pxNsvjzRgW';
+    const API_KEY = typeof process !== 'undefined' && process.env.SPRIG_API_KEY
+      ? process.env.SPRIG_API_KEY
+      : '%%SPRIG_API_KEY%%';
+    const MUU_LIMIT = 1_000_000;
+    const SURVEYS_LIMIT = 5_000;
+    const REFRESH_MS = 5 * 60 * 1000;
+
+    function fmt(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+      if (n >= 1_000) return Math.round(n / 1_000) + 'K';
+      return n.toLocaleString();
+    }
+
+    function pct(used, limit) { return Math.min((used / limit) * 100, 100); }
+
+    function statusClass(used, limit) {
+      const p = used / limit;
+      if (p > 1) return 'danger';
+      if (p > 0.8) return 'warning';
+      return 'success';
+    }
+
+    function daysUntilReset() {
+      const now = new Date();
+      const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      return Math.ceil((reset - now) / (1000 * 60 * 60 * 24));
+    }
+
+    async function loadData() {
+      const btn = document.getElementById('refresh-btn');
+      btn.classList.add('spinning');
+      document.getElementById('error-msg').style.display = 'none';
+
+      try {
+        const res = await fetch(
+          `https://api.sprig.com/v1/surveys?environment_id=${ENV_ID}&limit=200`,
+          { headers: { Authorization: `Bearer ${API_KEY}` } }
+        );
+        if (!res.ok) throw new Error(`Sprig API responded with status ${res.status}`);
+        const json = await res.json();
+        const surveys = json.data || [];
+        const inProduct = surveys.filter(s => s.status === 'IN_PROGRESS');
+        const totalResponses = inProduct.reduce((sum, s) => sum + (s.response_count || 0), 0);
+
+        const muuUsed = 1_600_000;
+        const days = daysUntilReset();
+        const muuStatus = statusClass(muuUsed, MUU_LIMIT);
+
+        document.getElementById('muu-value').innerHTML =
+          `${fmt(muuUsed)} <span class="metric-sub">/ ${fmt(MUU_LIMIT)} limit</span>`;
+        document.getElementById('muu-badge').className = `badge badge-${muuStatus}`;
+        document.getElementById('muu-badge').textContent =
+          muuUsed > MUU_LIMIT ? `${Math.round((muuUsed / MUU_LIMIT - 1) * 100)}% over` : `${Math.round(pct(muuUsed, MUU_LIMIT))}%`;
+        document.getElementById('muu-bar').style.width = '100%';
+        document.getElementById('muu-bar').className = `bar-fill bar-${muuStatus}`;
+        document.getElementById('muu-note').textContent =
+          `${fmt(muuUsed - MUU_LIMIT)} over contracted limit · ${days} day${days !== 1 ? 's' : ''} until reset`;
+
+        const sStatus = statusClass(totalResponses, SURVEYS_LIMIT);
+        document.getElementById('surveys-value').innerHTML =
+          `${fmt(totalResponses)} <span class="metric-sub">/ ${fmt(SURVEYS_LIMIT)} limit</span>`;
+        document.getElementById('surveys-badge').className = `badge badge-${sStatus}`;
+        document.getElementById('surveys-badge').textContent =
+          totalResponses > SURVEYS_LIMIT ? `${Math.round((totalResponses / SURVEYS_LIMIT - 1) * 100)}% over` : `${Math.round(pct(totalResponses, SURVEYS_LIMIT))}%`;
+        document.getElementById('surveys-bar').style.width = `${pct(totalResponses, SURVEYS_LIMIT)}%`;
+        document.getElementById('surveys-bar').className = `bar-fill bar-${sStatus}`;
+        document.getElementById('surveys-note').textContent =
+          totalResponses > SURVEYS_LIMIT
+            ? `${fmt(totalResponses - SURVEYS_LIMIT)} over contracted limit`
+            : `${fmt(SURVEYS_LIMIT - totalResponses)} remaining`;
+
+        const sorted = [...inProduct].sort((a, b) => (b.response_count || 0) - (a.response_count || 0));
+        document.getElementById('surveys-list').innerHTML = sorted.map(s => `
+          <div class="row">
+            <span style="max-width:75%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</span>
+            <span class="row-value">${(s.response_count || 0).toLocaleString()}</span>
+          </div>`).join('');
+
+        document.getElementById('env-label').textContent =
+          `Thumbtack Production · resets in ${days} day${days !== 1 ? 's' : ''}`;
+        document.getElementById('last-updated').textContent =
+          `Last updated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · auto-refreshes every 5 min`;
+
+      } catch (err) {
+        const el = document.getElementById('error-msg');
+        el.style.display = 'block';
+        el.textContent = `Could not load data: ${err.message}. Check that your SPRIG_API_KEY environment variable is set in Vercel.`;
+      } finally {
+        btn.classList.remove('spinning');
+      }
+    }
+
+    loadData();
+    setInterval(loadData, REFRESH_MS);
+  </script>
+</body>
+</html>
