@@ -147,8 +147,6 @@
   </div>
 
   <script>
-    const ENV_ID = '67pxNsvjzRgW';
-    const API_KEY = '83fbfee0-c5be-4d46-8fa7-2be2d2886d71';
     const MUU_LIMIT = 1_000_000;
     const SURVEYS_LIMIT = 5_000;
     const REFRESH_MS = 5 * 60 * 1000;
@@ -180,11 +178,8 @@
       document.getElementById('error-msg').style.display = 'none';
 
       try {
-        const res = await fetch(
-          `https://api.sprig.com/v1/surveys?environment_id=${ENV_ID}&limit=200`,
-          { headers: { Authorization: `Bearer ${API_KEY}` } }
-        );
-        if (!res.ok) throw new Error(`Sprig API responded with status ${res.status}`);
+        const res = await fetch('/api/surveys');
+        if (!res.ok) throw new Error(`API responded with status ${res.status}`);
         const json = await res.json();
         const surveys = json.data || [];
         const inProduct = surveys.filter(s => s.status === 'IN_PROGRESS');
@@ -232,7 +227,7 @@
       } catch (err) {
         const el = document.getElementById('error-msg');
         el.style.display = 'block';
-        el.textContent = `Could not load data: ${err.message}. Check that your Sprig API key is correct.`;
+        el.textContent = `Could not load data: ${err.message}`;
       } finally {
         btn.classList.remove('spinning');
       }
