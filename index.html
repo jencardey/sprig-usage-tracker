@@ -148,9 +148,7 @@
 
   <script>
     const ENV_ID = '67pxNsvjzRgW';
-    const API_KEY = typeof process !== 'undefined' && process.env.SPRIG_API_KEY
-      ? process.env.SPRIG_API_KEY
-      : '%%SPRIG_API_KEY%%';
+    const API_KEY = '83fbfee0-c5be-4d46-8fa7-2be2d2886d71';
     const MUU_LIMIT = 1_000_000;
     const SURVEYS_LIMIT = 5_000;
     const REFRESH_MS = 5 * 60 * 1000;
@@ -234,7 +232,7 @@
       } catch (err) {
         const el = document.getElementById('error-msg');
         el.style.display = 'block';
-        el.textContent = `Could not load data: ${err.message}. Check that your SPRIG_API_KEY environment variable is set in Vercel.`;
+        el.textContent = `Could not load data: ${err.message}. Check that your Sprig API key is correct.`;
       } finally {
         btn.classList.remove('spinning');
       }
